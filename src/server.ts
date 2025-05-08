@@ -8,19 +8,16 @@ import dotenv from 'dotenv';
 // import swaggerDoc from './swagger.json';
 
 import { globalErrorHandler } from './shared/middlewares/globalErrorHandler';
+import { RootRouter } from './shared/rootRouter';
 
 const app = express();
 
 app.use(express.json());
 dotenv.config();
 app.use(cors({ origin: process.env.CORS_ORIGINS?.split(',') }));
-// mount all modules
-// app.use('/api/ecommerce', ecommerceRouter);
-// app.use('/api/blog',      blogRouter);
-// app.use('/api/hobby',     hobbyRouter);
 
-// // docs
-// app.use('/docs', swaggerUi.serve, swaggerUi.setup(swaggerDoc));
+app.use('/api/v1', RootRouter);
+
 
 // global error handler
 app.use(globalErrorHandler);
