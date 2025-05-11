@@ -1,17 +1,62 @@
+import jwt from 'jsonwebtoken';
 import { prisma } from "../config/db"
+
 import { TUser } from "../utils/types"
+import { AppError } from '../utils/AppError';
+
+
+
 
 
 const register = async (payload: TUser) => {
 
     const result = await prisma.user.create({
         data: {
-            ...payload    
+            ...payload
         }
     })
     return result
-
 }
+
+
+
+const login = async (payload: TUser) => {
+
+    const result = await prisma.user.findUnique({
+        where: {
+            email: payload.email,
+            password: payload.password
+        }
+    })
+    if (!result) {
+        throw new AppError(404, "Invalid email or password")
+    }
+
+    const jwtPayload = {
+        id: result.id,
+        name: result.name,
+        email: result.email,
+        role: result.role,
+        createdAt: result.createdAt,
+        updatedAt: result.updatedAt
+    }
+
+    const token = jwt.sign(jwtPayload, process.env.JWT_SECRET as string, {
+        expiresIn: "1d"
+    })
+    console.log(token)
+
+
+
+    return {token}
+}
+
+
+
+
+
+
+
 const getAllUsers = async () => {
 
     const result = await prisma.user.findMany()
@@ -22,7 +67,7 @@ const getAllUsers = async () => {
 const getSingleUser = async (id: string) => {
 
     const result = await prisma.user.findUnique({
-        where: {id}
+        where: { id }
     })
     return result
 
@@ -31,6 +76,7 @@ const getSingleUser = async (id: string) => {
 
 export const AuthService = {
     register,
-    getAllUsers, 
-    getSingleUser
+    getAllUsers,
+    getSingleUser,
+    login
 }

@@ -22,14 +22,27 @@ const register = (0, catchAsync_1.catchAsync)((req, res) => __awaiter(void 0, vo
         },
     });
 }));
+const login = (0, catchAsync_1.catchAsync)((req, res) => __awaiter(void 0, void 0, void 0, function* () {
+    const { token } = yield auth_service_1.AuthService.login(req.body);
+    const cookieOptions = {
+        httpOnly: true,
+        secure: process.env.NODE_ENV === 'production',
+    };
+    res.cookie('accessToken', token, cookieOptions);
+    res.status(201).json({
+        status: "success",
+        message: "User Login successfully",
+        data: { accessToken: token },
+    });
+}));
 const getAllUsers = (0, catchAsync_1.catchAsync)((req, res) => __awaiter(void 0, void 0, void 0, function* () {
+    const user = req.user;
+    console.log(user);
     const result = yield auth_service_1.AuthService.getAllUsers();
     res.status(201).json({
         status: "success",
         message: "get all users successfully",
-        data: {
-            user: result,
-        },
+        data: result
     });
 }));
 const getSingleUser = (0, catchAsync_1.catchAsync)((req, res) => __awaiter(void 0, void 0, void 0, function* () {
@@ -38,13 +51,12 @@ const getSingleUser = (0, catchAsync_1.catchAsync)((req, res) => __awaiter(void 
     res.status(201).json({
         status: "success",
         message: "get single user successfully",
-        data: {
-            user: result,
-        },
+        data: result
     });
 }));
 exports.AuthController = {
     register,
     getAllUsers,
-    getSingleUser
+    getSingleUser,
+    login
 };

@@ -1,10 +1,9 @@
 
-import { Request, Response } from "express";
 import { catchAsync } from "../utils/catchAsync";
 import { AuthService } from "./auth.service";
 
 
-const  register = catchAsync(async (req: Request, res: Response) => {
+const  register = catchAsync(async (req, res) => {
 
 const result = await AuthService.register(req.body)
 
@@ -15,23 +14,43 @@ const result = await AuthService.register(req.body)
       user: result,
     },
 })
+})
+
+const  login = catchAsync(async (req, res) => {
+
+const {token} = await AuthService.login(req.body)
+
+
+    const cookieOptions = {
+        httpOnly: true,
+        secure: process.env.NODE_ENV === 'production',
+    }
+    
+  res.cookie('accessToken', token, cookieOptions)
+
+  res.status(201).json({
+    status: "success",
+    message: "User Login successfully",
+    data: {accessToken: token},
+})
 
 })
 
-const  getAllUsers = catchAsync(async (req: Request, res: Response) => {
+const  getAllUsers = catchAsync(async (req, res) => {
+
+  const user = req.user
+  console.log(user)
 
 const result = await AuthService.getAllUsers()
 
   res.status(201).json({
     status: "success",
     message: "get all users successfully",
-    data: {
-      user: result,
-    },
+    data: result
 })
 
 })
-const  getSingleUser = catchAsync(async (req: Request, res: Response) => {
+const  getSingleUser = catchAsync(async (req, res) => {
   const { id } = req.params
 
 const result = await AuthService.getSingleUser(id)
@@ -39,9 +58,7 @@ const result = await AuthService.getSingleUser(id)
   res.status(201).json({
     status: "success",
     message: "get single user successfully",
-    data: {
-      user: result,
-    },
+    data: result
 })
 
 })
@@ -49,7 +66,8 @@ const result = await AuthService.getSingleUser(id)
   export const AuthController = {
     register,
     getAllUsers, 
-    getSingleUser
+    getSingleUser, 
+    login
   }
 
 
