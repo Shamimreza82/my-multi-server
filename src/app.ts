@@ -15,7 +15,10 @@ const app = express();
 
 app.use(express.json());
 app.use(cookieParser());
-app.use(cors({ origin: process.env.CORS_ORIGINS?.split(',') }));
+app.use(cors({ 
+    origin:'**', // allow all origins
+    credentials: true, // allow credentials 
+}));
 
 
 
