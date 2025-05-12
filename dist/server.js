@@ -1,52 +1,64 @@
 "use strict";
+var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, generator) {
+    function adopt(value) { return value instanceof P ? value : new P(function (resolve) { resolve(value); }); }
+    return new (P || (P = Promise))(function (resolve, reject) {
+        function fulfilled(value) { try { step(generator.next(value)); } catch (e) { reject(e); } }
+        function rejected(value) { try { step(generator["throw"](value)); } catch (e) { reject(e); } }
+        function step(result) { result.done ? resolve(result.value) : adopt(result.value).then(fulfilled, rejected); }
+        step((generator = generator.apply(thisArg, _arguments || [])).next());
+    });
+};
 var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
-var _a;
 Object.defineProperty(exports, "__esModule", { value: true });
-const express_1 = __importDefault(require("express"));
-const cors_1 = __importDefault(require("cors"));
-const dotenv_1 = __importDefault(require("dotenv"));
-const cookie_parser_1 = __importDefault(require("cookie-parser"));
-const globalErrorHandler_1 = require("./shared/middlewares/globalErrorHandler");
-const rootRouter_1 = require("./shared/rootRouter");
+/* eslint-disable @typescript-eslint/no-explicit-any */
+const http_1 = __importDefault(require("http"));
+const app_1 = __importDefault(require("./app"));
 const logger_1 = require("./shared/utils/logger");
-dotenv_1.default.config();
-const app = (0, express_1.default)();
-app.use(express_1.default.json());
-app.use((0, cookie_parser_1.default)());
-app.use((0, cors_1.default)({ origin: (_a = process.env.CORS_ORIGINS) === null || _a === void 0 ? void 0 : _a.split(',') }));
-// connect your routers
-app.use('/api/v1', rootRouter_1.RootRouter);
-// simple health check
-app.get('/', (req, res) => {
-    res.status(200).json({
-        status: 'success', // overall result
-        timestamp: new Date().toISOString(), // when this response was generated
-        uptime: process.uptime(), // seconds since the app started
-        version: process.env.nPM_PACKAGE_VERSION, // your package.json version
-        environment: process.env.NODE_ENV, // e.g. “development” or “production”
-        data: {
-            message: 'API is up and running! 🚀'
+const db_1 = require("./shared/config/db");
+const PORT = process.env.PORT || 3000;
+// 1. Start the server
+const server = http_1.default.createServer(app_1.default);
+server.listen(PORT, () => {
+    logger_1.logger.info(`Server listening on port ${PORT}`);
+});
+// 2. Centralized shutdown logic
+const shutDown = (signal) => {
+    logger_1.logger.info(`${signal} received: closing server gracefully…`);
+    server.close((err) => __awaiter(void 0, void 0, void 0, function* () {
+        if (err) {
+            logger_1.logger.error('Error closing HTTP server', err);
+            process.exit(1);
         }
-    });
-});
-// 404 for any other route
-// app.all('*', (req, res, next) => {
-//   next(new AppError(404, `Cannot find ${req.originalUrl} on this server`));
-// });
-// global error handler
-app.use(globalErrorHandler_1.globalErrorHandler);
-// handle uncaught exceptions & rejections
+        try {
+            // e.g. close DB connection
+            yield db_1.prisma.$disconnect();
+            logger_1.logger.info('Database connection closed.');
+            process.exit(0);
+        }
+        catch (dbErr) {
+            logger_1.logger.error('Error during database disconnect', dbErr);
+            process.exit(1);
+        }
+    }));
+    // in case server.close hangs
+    setTimeout(() => {
+        logger_1.logger.error('Forcefully shutting down.');
+        process.exit(1);
+    }, 30000).unref();
+};
+// 3. Handle uncaught exceptions
 process.on('uncaughtException', (err) => {
-    logger_1.logger.error('UNCAUGHT EXCEPTION 💥', err);
-    process.exit(1);
+    logger_1.logger.error('UNCAUGHT EXCEPTION 💥:', err);
+    shutDown('uncaughtException');
 });
-process.on('unhandledRejection', (reason) => {
-    logger_1.logger.error('UNHANDLED REJECTION 💥', reason);
-    // optionally: server.close(() => process.exit(1));
+// 4. Handle unhandled promise rejections
+process.on('unhandledRejection', (reason, promise) => {
+    logger_1.logger.error('UNHANDLED REJECTION 💥:', { reason, promise });
+    shutDown('unhandledRejection');
 });
-const PORT = Number(process.env.PORT) || 3000;
-app.listen(PORT, () => {
-    logger_1.logger.info(`🚀 Server listening on http://localhost:${PORT}`);
+// 5. Handle OS signals (Docker, Heroku, Ctrl-C, etc.)
+['SIGINT', 'SIGTERM'].forEach((signal) => {
+    process.on(signal, () => shutDown(signal));
 });

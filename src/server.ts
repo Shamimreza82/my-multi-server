@@ -1,73 +1,62 @@
-
-import express from 'express';
-import cors from 'cors';
-import dotenv from 'dotenv';
-import cookieParser from 'cookie-parser';
-import { globalErrorHandler } from './shared/middlewares/globalErrorHandler';
-import { RootRouter } from './shared/rootRouter';
-import { logger } from './shared/utils/logger';
+/* eslint-disable @typescript-eslint/no-explicit-any */
+import http from "http";
+import app from "./app";
+import { logger } from "./shared/utils/logger";
+import { prisma } from "./shared/config/db";
 
 
 
-dotenv.config();
-const app = express();
 
-app.use(express.json());
-app.use(cookieParser());
-app.use(cors({ origin: process.env.CORS_ORIGINS?.split(',') }));
+const PORT = process.env.PORT || 3000;
 
-
-
-// connect your routers
-app.use('/api/v1', RootRouter);
+// 1. Start the server
+const server = http.createServer(app);
+server.listen(PORT, () => {
+  logger.info(`Server listening on port ${PORT}`);
+});
 
 
-
-// simple health check
-app.get('/', (req, res) => {
-  res.status(200).json({
-    status: 'success',                         // overall result
-    timestamp: new Date().toISOString(),       // when this response was generated
-    uptime: process.uptime(),                  // seconds since the app started
-    version: process.env.nPM_PACKAGE_VERSION,  // your package.json version
-    environment: process.env.NODE_ENV,         // e.g. “development” or “production”
-    data: {                                    // reserved for any future payload
-      message: 'API is up and running! 🚀'
+// 2. Centralized shutdown logic
+const shutDown = (signal: any) => {
+  logger.info(`${signal} received: closing server gracefully…`);
+  server.close(async (err) => {
+    if (err) {
+      logger.error('Error closing HTTP server', err);
+      process.exit(1);
+    }
+    try {
+      // e.g. close DB connection
+      await prisma.$disconnect();
+      logger.info('Database connection closed.');
+      process.exit(0);
+    } catch (dbErr) {
+      logger.error('Error during database disconnect', dbErr);
+      process.exit(1);
     }
   });
-});
 
+  // in case server.close hangs
+  setTimeout(() => {
+    logger.error('Forcefully shutting down.');
+    process.exit(1);
+  }, 30_000).unref();
+};
 
-
-
-// 404 for any other route
-// app.all('*', (req, res, next) => {
-//   next(new AppError(404, `Cannot find ${req.originalUrl} on this server`));
-// });
-
-
-
-// global error handler
-app.use(globalErrorHandler);
-
-
-
-// handle uncaught exceptions & rejections
+// 3. Handle uncaught exceptions
 process.on('uncaughtException', (err) => {
-  logger.error('UNCAUGHT EXCEPTION 💥', err);
-  process.exit(1);
-});
-process.on('unhandledRejection', (reason) => {
-  logger.error('UNHANDLED REJECTION 💥', reason);
-  // optionally: server.close(() => process.exit(1));
+  logger.error('UNCAUGHT EXCEPTION 💥:', err);
+  shutDown('uncaughtException');
 });
 
-
-
-const PORT = Number(process.env.PORT) || 3000;
-app.listen(PORT, () => {
-  logger.info(`🚀 Server listening on http://localhost:${PORT}`);
+// 4. Handle unhandled promise rejections
+process.on('unhandledRejection', (reason, promise) => {
+  logger.error('UNHANDLED REJECTION 💥:', { reason, promise });
+  shutDown('unhandledRejection');
 });
 
+// 5. Handle OS signals (Docker, Heroku, Ctrl-C, etc.)
+['SIGINT', 'SIGTERM'].forEach((signal) => {
+  process.on(signal, () => shutDown(signal));
+});
 
 
