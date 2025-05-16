@@ -15,7 +15,6 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.AuthService = void 0;
 const jsonwebtoken_1 = __importDefault(require("jsonwebtoken"));
 const db_1 = require("../config/db");
-const AppError_1 = require("../utils/AppError");
 const register = (payload) => __awaiter(void 0, void 0, void 0, function* () {
     const result = yield db_1.prisma.user.create({
         data: Object.assign({}, payload)
@@ -30,7 +29,7 @@ const login = (payload) => __awaiter(void 0, void 0, void 0, function* () {
         }
     });
     if (!result) {
-        throw new AppError_1.AppError(404, "Invalid email or password");
+        throw new Error("result not found");
     }
     const jwtPayload = {
         id: result.id,

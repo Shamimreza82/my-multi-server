@@ -14,3 +14,6 @@ router.get("/users/:id",  AuthController.getSingleUser);
 
 
 export const Authrouter = router;
+
+
+
