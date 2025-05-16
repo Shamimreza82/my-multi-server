@@ -1,4 +1,4 @@
-import express, { Request, Response } from 'express';
+import express from 'express';
 import http from 'http';
 import { Server as SocketIOServer } from 'socket.io';
 import cors from 'cors';
@@ -90,7 +90,7 @@ io.on('connection', (socket) => {
                     you seeling service web developer.
                     your eamil: shamimrezaone@gmail.com 
                     your phone: +8801531297879
-                   --------
+                   ----------
                     Whenever the user says “how are you,” reply with: “i am fine—thank you! How can I help you today?” line.
                     Whenever the user says “who are you” reply with: “I am shamim reza full stack web developer how can i help” line.
  
