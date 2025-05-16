@@ -2,7 +2,7 @@ import jwt from 'jsonwebtoken';
 import { prisma } from "../config/db"
 
 import { TUser } from "../utils/types"
-import { AppError } from '../utils/AppError';
+
 
 
 
@@ -29,7 +29,7 @@ const login = async (payload: TUser) => {
         }
     })
     if (!result) {
-        throw new AppError(404, "Invalid email or password")
+        throw new Error("result not found")
     }
 
     const jwtPayload = {
